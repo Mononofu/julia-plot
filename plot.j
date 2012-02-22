@@ -1,7 +1,7 @@
 libmgl = dlopen("libmgl")
 
 function mgl_create_graph_zb(x::Int, y::Int)
-		ccall(dlsym(libmgl, :mgl_create_graph_zb), Ptr{Int}, (Int, Int), x, y)
+	ccall(dlsym(libmgl, :mgl_create_graph_zb), Ptr{Int}, (Int, Int), x, y)
 end
 
 function mgl_subplot(gr::Ptr{Int}, x::Int, y::Int, z::Int)
