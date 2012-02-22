@@ -44,6 +44,10 @@ function mgl_data_set(plot_data::Ptr{Int}, data::Array{Float32, 1})
     ccall(dlsym(libmgl, :mgl_data_set_float), Ptr, (Ptr{Int}, Ptr{Float}, Int, Int, Int), plot_data, pointer(data), length(data), 1, 1)
 end
 
+function mgl_data_set(plot_data::Ptr{Int}, data::Array{Float32, 1}, num_funs::Int)
+		ccall(dlsym(libmgl, :mgl_data_set_float), Ptr, (Ptr{Int}, Ptr{Float}, Int, Int, Int), plot_data, pointer(data), div(length(data), num_funs), num_funs, 1)
+end
+
 function mgl_create_data_size(x::Int, y::Int, z::Int)
 		ccall(dlsym(libmgl, :mgl_create_data_size), Ptr{Int}, (Int, Int, Int), x, y, z)
 end
@@ -65,9 +69,19 @@ function mgl_axis(gr::Ptr{Int}, axis::String)
 end
 
 
-function plot(fun::Function, xmin::Number, xmax::Number, filename::String)
+
+
+function setup_graph()
 		const width = 800
 		const height = 300
+
+		# create graph
+		graph = mgl_create_graph_zb(width, height)
+		mgl_box(graph, true)
+		graph
+end
+
+function generate_data(fun::Function, xmin::Number, xmax::Number)
 		const plot_points = 500
 
 		# generate data
@@ -78,28 +92,55 @@ function plot(fun::Function, xmin::Number, xmax::Number, filename::String)
 		for i=1:plot_points
 				y[i] = fun(x[i])
 		end
+		y
+end
+
+function plot(fun::Function, xmin::Number, xmax::Number, filename::String)
+		plot([fun], xmin, xmax, filename)
+end
+
+function plot(funs::Array{Function, 1}, xmin::Number, xmax::Number, filename::String)
+		plot([(fun, "r") | fun=funs], xmin, xmax, filename)
+end
+
+function plot(funs::Array{Any, 1}, xmin::Number, xmax::Number, filename::String)
+		graph = setup_graph()
+
+		y = [generate_data(fun[1], xmin, xmax) | fun=funs]
+
+		ymin = 1e20
+		ymax = -1e20
+
+		for i=1:length(funs)
+				for j=1:length(y[i])
+						ymin = min(ymin, y[i][j])
+						ymax = max(ymax, y[i][j])
+				end
+		end
+
+		mgl_set_axis(graph, float32(xmin), float32(xmax), ymin, ymax)
 
 
-		# create graph
-		graph = mgl_create_graph_zb(width, height)
+		for i=1:length(funs)
+				fun, color = funs[i]
 
-		# create structure to hold plot data
-		plot_data = mgl_create_data_size(plot_points, 1, 1)
+				# create structure to hold plot data
+				plot_data = mgl_create_data_size(length(y[i]), 1, 1)
 
-		# save our plot data to the new structure
-		mgl_data_set(plot_data, y)
+				# save our plot data to the new structure
+				mgl_data_set(plot_data, y[i])
 
-		mgl_set_axis(graph, float32(xmin), float32(xmax), min(y), max(y))
-
-		mgl_box(graph, true)
-		mgl_plot(graph, plot_data, "r")
+				mgl_plot(graph, plot_data, color)
+		end		
 
 		mgl_axis(graph,"xy")
 
 		mgl_write_png(graph, filename)
-
 end
+
 
 plot(x -> sin(x), -4, 4, "sample.png")
 
+plot([x -> sin(x), x -> cos(x)], -4, 4, "dual.png")
 
+plot([(x -> 2*sin(2x), "r"), (x -> cos(x), "b")], -4, 4, "colored.png")
