@@ -13,14 +13,17 @@ Usage
 --------------------------
 
 Too plot a singe function:
+
 		plot(x -> sin(x), -4, 4, "sample.png")
 
 		plot(function, xmin, xmax, filename)
 
 a list of functions:
+
 		plot([x -> sin(x), x -> cos(x)], -4, 4, "dual.png")
 
 a list of (function, color) pairs:
+
 		plot([(x -> 2*sin(2x), "r"), (x -> cos(x), "b")], -4, 4, "colored.png")
 
 
