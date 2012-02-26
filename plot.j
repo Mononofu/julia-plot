@@ -149,9 +149,16 @@ function paint_to_file(graph::Ptr{Int}, filename::String)
 	mgl_write_png(graph, filename)
 end
 
+function plot(fun::Function, xmin::Number, xmax::Number, filename::String)
+	pl = Plot(800, 300)
+	add(pl, fun)
+	paint(pl, xmin, xmax, filename)
+end
 
 
 pl = Plot(800, 300)
 add(pl, x -> sin(x))
 add(pl, x -> cos(x), "b")
 paint(pl, -4, 4, "classy.png")
+
+plot(x -> exp(x), 0, 5, "exp.png")

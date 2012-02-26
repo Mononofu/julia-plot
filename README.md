@@ -18,13 +18,18 @@ Too plot a singe function:
 
 		plot(function, xmin, xmax, filename)
 
-a list of functions:
+If you want to plot more than one function, use the advanced interface:
 
-		plot([x -> sin(x), x -> cos(x)], -4, 4, "dual.png")
+		# create new plot of size 800x300
+		pl = Plot(800, 300)
 
-a list of (function, color) pairs:
+		# add functions
+		add(pl, x -> sin(x))
+		# optionally choose a color
+		add(pl, x -> cos(x))
 
-		plot([(x -> 2*sin(2x), "r"), (x -> cos(x), "b")], -4, 4, "colored.png")
+		# export to a file
+		paint(pl, "myplot.png")
 
 
 Screenshot
