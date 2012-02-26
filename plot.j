@@ -69,13 +69,28 @@ function mgl_axis(gr::Ptr{Int}, axis::String)
 end
 
 
+type Plot
+	width::Int
+	height::Int
+	funs::Array{Any, 1}
 
+	Plot(width::Int, height::Int) = new( width, height, [(x -> 0, "g")] )
+end
+       
+function add(plot::Plot, fun::Any)
+	add(plot, fun, "r")
+end
 
-function setup_graph()
-	const width = 800
-	const height = 300
+function add(plot::Plot, fun::Any, color::String)
+  plot.funs = cat(1, plot.funs, [(fun, color)])
+  plot
+end
 
-	# create graph
+function paint(pl::Plot, xmin::Number, xmax::Number, filename::String)
+	plot(pl.funs, xmin, xmax, pl.width, pl.height, filename)
+end
+
+function setup_graph(width::Int, height::Int)
 	graph = mgl_create_graph_zb(width, height)
 	mgl_box(graph, true)
 	graph
@@ -95,16 +110,9 @@ function generate_data(fun::Function, xmin::Number, xmax::Number)
 	y
 end
 
-function plot(fun::Function, xmin::Number, xmax::Number, filename::String)
-	plot([fun], xmin, xmax, filename)
-end
 
-function plot(funs::Array{Function, 1}, xmin::Number, xmax::Number, filename::String)
-	plot([(fun, "r") | fun=funs], xmin, xmax, filename)
-end
-
-function plot(funs::Array{Any, 1}, xmin::Number, xmax::Number, filename::String)
-	graph = setup_graph()
+function plot(funs::Array{Any, 1}, xmin::Number, xmax::Number, width::Int, height::Int, filename::String)
+	graph = setup_graph(width, height)
 
 	y = [generate_data(fun[1], xmin, xmax) | fun=funs]
 
@@ -120,8 +128,8 @@ function plot(funs::Array{Any, 1}, xmin::Number, xmax::Number, filename::String)
 
 	mgl_set_axis(graph, float32(xmin), float32(xmax), ymin, ymax)
 
-
-	for i=1:length(funs)
+	# skip first function - placeholder
+	for i=2:length(funs)
 		fun, color = funs[i]
 
 		# create structure to hold plot data
@@ -133,14 +141,17 @@ function plot(funs::Array{Any, 1}, xmin::Number, xmax::Number, filename::String)
 		mgl_plot(graph, plot_data, color)
 	end		
 
-	mgl_axis(graph,"xy")
+	paint_to_file(graph, filename)
+end
 
+function paint_to_file(graph::Ptr{Int}, filename::String)
+	mgl_axis(graph,"xy")
 	mgl_write_png(graph, filename)
 end
 
 
-plot(x -> sin(x), -4, 4, "sample.png")
 
-plot([x -> sin(x), x -> cos(x)], -4, 4, "dual.png")
-
-plot([(x -> 2*sin(2x), "r"), (x -> cos(x), "b")], -4, 4, "colored.png")
+pl = Plot(800, 300)
+add(pl, x -> sin(x))
+add(pl, x -> cos(x), "b")
+paint(pl, -4, 4, "classy.png")
