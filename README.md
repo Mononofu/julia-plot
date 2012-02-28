@@ -18,6 +18,9 @@ Too plot a singe function:
 
 		plot(function, xmin, xmax, filename)
 
+Advanced Plotting
+--------------------------
+
 If you want to plot more than one function, use the advanced interface:
 
 		# create new plot of size 800x300
@@ -26,12 +29,32 @@ If you want to plot more than one function, use the advanced interface:
 		# add functions
 		add(pl, x -> sin(x))
 		# optionally choose a color
-		add(pl, x -> cos(x))
+		add(pl, x -> 2*cos(x), "b")
 
 		# export to a file
 		paint(pl, "myplot.png")
 
-
-Screenshot
--------------------------
 ![screenshot](https://github.com/Mononofu/julia-plot/raw/master/colored.png)
+
+Wait, there's more!
+--------------------------
+
+Of course, you can also pass the data directly, without specifying a generating
+function. And you don't have to use line charts either - we also support bar charts!
+
+For example, we might want to check how random julia's `rand()` function really is.
+On simplistic approach might look like this:
+
+		# generate random data
+		num_bins = 50
+		data = zeros(Float32, num_bins)
+		[ data[ 1 + ifloor(rand()*num_bins)] += 1 | i=1:100000]
+
+		# plot it so we can see clustering
+		dpl = DataPlot(800, 300)
+		add(dpl, data, "r")
+		dpl.plot_type = "bars"
+		paint(dpl, 0, 1, "random.png")
+
+![screenshot](https://github.com/Mononofu/julia-plot/raw/master/random.png)
+

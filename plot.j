@@ -36,6 +36,10 @@ function mgl_plot(gr::Ptr{Int}, plot_data::Ptr{Int}, colors)
 	ccall(dlsym(libmgl, :mgl_plot), Ptr, (Ptr{Int}, Ptr{Int}, Ptr{Uint8}), gr, plot_data, colors)
 end
 
+function mgl_bars(gr::Ptr{Int}, plot_data::Ptr{Int}, colors)
+	ccall(dlsym(libmgl, :mgl_bars), Ptr, (Ptr{Int}, Ptr{Int}, Ptr{Uint8}), gr, plot_data, colors)
+end
+
 function mgl_data_modify(plot_data::Ptr{Int}, fun::String)
 	ccall(dlsym(libmgl, :mgl_data_modify), Ptr, (Ptr{Int}, Ptr{Uint8}, Int), plot_data, fun, 0)
 end
@@ -73,8 +77,19 @@ type Plot
 	width::Int
 	height::Int
 	funs::Array{Any, 1}
+	plot_type::String
+	plot_points::Int
 
-	Plot(width::Int, height::Int) = new( width, height, [(x -> 0, "g")] )
+	Plot(width::Int, height::Int) = new( width, height, [(x -> 0, "g")], "lines", 500 )
+end
+
+type DataPlot
+	width::Int
+	height::Int
+	plot_type::String
+	data::Array{Any, 1}
+
+	DataPlot(width::Int, height::Int) = new(width, height, "lines", [ ([float32(2)], "b")])
 end
        
 function add(plot::Plot, fun::Any)
@@ -86,8 +101,18 @@ function add(plot::Plot, fun::Any, color::String)
   plot
 end
 
+function add(plot::DataPlot, data::Array{Float32, 1}, color::String)
+	plot.data = push(plot.data, (data, color))
+	plot
+end
+
 function paint(pl::Plot, xmin::Number, xmax::Number, filename::String)
-	plot(pl.funs, xmin, xmax, pl.width, pl.height, filename)
+	data = [ (generate_data(fun[1], xmin, xmax, pl.plot_points), fun[2]) | fun=pl.funs]
+	plot(data, xmin, xmax, pl.width, pl.height, filename, pl.plot_type)
+end
+
+function paint(pl::DataPlot, xmin::Number, xmax::Number, filename::String)
+	plot(pl.data, xmin, xmax, pl.width, pl.height, filename, pl.plot_type)
 end
 
 function setup_graph(width::Int, height::Int)
@@ -96,9 +121,7 @@ function setup_graph(width::Int, height::Int)
 	graph
 end
 
-function generate_data(fun::Function, xmin::Number, xmax::Number)
-	const plot_points = 500
-
+function generate_data(fun::Function, xmin::Number, xmax::Number, plot_points::Int)
 	# generate data
 	y = Array(Float32, plot_points)
 
@@ -111,34 +134,38 @@ function generate_data(fun::Function, xmin::Number, xmax::Number)
 end
 
 
-function plot(funs::Array{Any, 1}, xmin::Number, xmax::Number, width::Int, height::Int, filename::String)
+function plot(y::Array{Any, 1}, xmin::Number, xmax::Number, width::Int, height::Int, filename::String, plot_type::String)
 	graph = setup_graph(width, height)
-
-	y = [generate_data(fun[1], xmin, xmax) | fun=funs]
 
 	ymin = 1e20
 	ymax = -1e20
 
-	for i=1:length(funs)
-		for j=1:length(y[i])
-			ymin = min(ymin, y[i][j])
-			ymax = max(ymax, y[i][j])
+	for i=1:length(y)
+		for j=1:length(y[i][1])
+			ymin = min(ymin, y[i][1][j])
+			ymax = max(ymax, y[i][1][j])
 		end
 	end
 
 	mgl_set_axis(graph, float32(xmin), float32(xmax), ymin, ymax)
 
-	# skip first function - placeholder
-	for i=2:length(funs)
-		fun, color = funs[i]
+	# skip first datapoint - placeholder
+	for i=2:length(y)
+		data, color = y[i]
 
 		# create structure to hold plot data
-		plot_data = mgl_create_data_size(length(y[i]), 1, 1)
+		# ugly hack because type inference fails
+		dat::Array{Float32, 1} = [float32(n) | n=data]
+		plot_data = mgl_create_data_size(length(data), 1, 1)
 
 		# save our plot data to the new structure
-		mgl_data_set(plot_data, y[i])
+		mgl_data_set(plot_data, dat)
 
-		mgl_plot(graph, plot_data, color)
+		if plot_type == "lines"
+			mgl_plot(graph, plot_data, color)
+		elseif plot_type == "bars"
+			mgl_bars(graph, plot_data, color)
+		end
 	end		
 
 	paint_to_file(graph, filename)
@@ -158,7 +185,19 @@ end
 
 pl = Plot(800, 300)
 add(pl, x -> sin(x))
-add(pl, x -> cos(x), "b")
+add(pl, x -> 2*cos(x), "b")
 paint(pl, -4, 4, "classy.png")
+
+
+# generate random data
+num_bins = 50
+data = zeros(Float32, num_bins)
+[ data[ 1 + ifloor(rand()*num_bins)] += 1 | i=1:100000]
+
+dpl = DataPlot(800, 300)
+add(dpl, data, "r")
+dpl.plot_type = "bars"
+paint(dpl, 0, 1, "random.png")
+
 
 plot(x -> exp(x), 0, 5, "exp.png")
